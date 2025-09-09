@@ -3,3 +3,4 @@ pandas
 dash-bootstrap-components
 plotly
 waitress
+gunicorn
