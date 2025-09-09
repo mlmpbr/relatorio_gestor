@@ -1,0 +1,5 @@
+dash
+pandas
+dash-bootstrap-components
+plotly
+waitress
