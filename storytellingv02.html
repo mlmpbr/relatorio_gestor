@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estudo de previsão de Receitas, com uso de Machine Learning</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony -->
+    <!-- Application Structure Plan: A estrutura é um storytelling visual e cronológico, guiando o usuário passo a passo pela jornada de um projeto de ML. Começa com a chegada dos dados, passa pela experimentação de modelos, detalha a escolha e a performance do modelo final, e culmina com a visualização dos resultados práticos (previsões) e sua conclusão para o negócio. Essa abordagem narrativa foi escolhida para traduzir um processo técnico complexo em uma história compreensível e impactante para tomadores de decisão, focando no 'porquê' e no 'para quê' do projeto, não apenas nos detalhes técnicos. -->
+    <!-- Visualization & Content Choices: 
+        1. Diagramas de Fluxo (Canvas Nativo) -> Goal: Informar/Organizar -> Viz: Diagramas simples com caixas e setas -> Interaction: N/A (Visual estático) -> Justification: Para ilustrar conceitos abstratos como 'dados brutos', 'modelo inicial' e a escolha entre 'AutoML vs. Manual' de forma clara e visual sem depender de imagens ou SVG, mantendo a leveza da página.
+        2. Métrica Chave (HTML/CSS) -> Goal: Informar -> Viz: Cartão de destaque -> Interaction: N/A -> Justification: Apresenta a métrica de erro (MAPE) de forma proeminente para dar confiança no modelo escolhido.
+        3. Previsão vs. Real (Chart.js) -> Goal: Comparar/Analisar -> Viz: Gráfico de Barras com cores distintas -> Interaction: Tooltips ao passar o mouse -> Justification: Um gráfico de barras é a forma mais eficaz de comparar valores reais com previsões ao longo do tempo, tornando o resultado do modelo tangível e fácil de interpretar.
+        4. Conclusão de Negócio (HTML) -> Goal: Informar/Persuadir -> Viz: Bloco de texto final -> Justification: Reforça a mensagem principal da história, conectando o resultado técnico (previsão) com o valor estratégico (melhoria na tomada de decisão).
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F8F7F4;
+            color: #3D405B;
+        }
+        .story-card {
+            background-color: #FFFFFF;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            padding: 2rem;
+            margin-bottom: 2.5rem;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 450px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 450px;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="py-8">
+        <div class="container mx-auto px-6 text-center">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">Estudo de previsão de Receitas, com uso de Machine Learning</h1>
+            <p class="text-center text-md md:text-lg text-gray-600 mt-2">Prefeitura Municipal de Navegantes</p>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-6 py-8 max-w-5xl">
+        <!-- Tab Navigation -->
+        <div class="mb-8 border-b border-gray-300">
+            <nav class="flex -mb-px space-x-6" aria-label="Tabs">
+                <button data-target="#tab-content-jornada" class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg border-blue-500 text-blue-600">
+                    Nossa Jornada de ML
+                </button>
+                <button data-target="#tab-content-explicacao" class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-400">
+                    O que é Machine Learning?
+                </button>
+            </nav>
+        </div>
+
+        <!-- Tab Content -->
+        <div id="tab-content-jornada" class="tab-content">
+            <div class="story-card text-center">
+                <h2 class="text-2xl font-bold mb-4">1. O Ponto de Partida: Dados Brutos</h2>
+                <p class="text-gray-600 mb-6">Tudo começou com a chegada dos dados. Nosso desafio era extrair insights e a capacidade de prever o futuro a partir de um grande volume de informações históricas.</p>
+                <canvas id="canvas-raw-data" width="600" height="150" class="mx-auto"></canvas>
+            </div>
+    
+            <div class="story-card text-center">
+                <h2 class="text-2xl font-bold mb-4">2. A Primeira Tentativa e o Aprendizado</h2>
+                <p class="text-gray-600 mb-6">Inicialmente, treinamos um modelo simples com categorias básicas. O resultado nos mostrou que precisávamos de uma abordagem mais robusta para alcançar a precisão necessária para o negócio.</p>
+                <canvas id="canvas-initial-model" width="600" height="150" class="mx-auto"></canvas>
+            </div>
+            
+            <div class="story-card text-center">
+                <h2 class="text-2xl font-bold mb-4">3. A Escolha Estratégica: Modelo Random Forest</h2>
+                <p class="text-gray-600 mb-6">Utilizando a plataforma Fabric, após testes manuais, optamos pelo modelo **Random Forest**. Ele é um algoritmo robusto e confiável, que se mostrou ideal para nosso desafio de previsão de arrecadação.</p>
+                <canvas id="canvas-fabric-choice" width="600" height="250" class="mx-auto"></canvas>
+            </div>
+    
+            <div class="story-card">
+                <h2 class="text-2xl font-bold text-center mb-4">4. Os Resultados: Previsões para 2025</h2>
+                <p class="text-gray-600 mb-8 text-center">Com o modelo validado, geramos as previsões para os próximos meses. O gráfico abaixo compara os dados reais de 2025 com as projeções do nosso modelo, demonstrando seu poder preditivo na prática.</p>
+                <div class="chart-container">
+                    <canvas id="forecastChart"></canvas>
+                </div>
+            </div>
+    
+            <div class="story-card">
+                <h2 class="text-2xl font-bold text-center mb-4">5. Por Dentro do Modelo: Detalhes Técnicos</h2>
+                <p class="text-gray-600 mb-8 text-center">A credibilidade do nosso modelo vem de métricas robustas e da compreensão dos fatores que mais influenciam as previsões. Abaixo, os dados reais extraídos da plataforma Fabric para o modelo Random Forest.</p>
+                <div class="flex flex-col md:flex-row gap-8 items-center">
+                    <div class="w-full md:w-2/3">
+                        <div class="chart-container" style="height: 400px;">
+                            <canvas id="featureImportanceChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="w-full md:w-1/3">
+                        <h3 class="text-xl font-bold text-center mb-4 text-gray-700">Métricas de Avaliação</h3>
+                        <div class="space-y-4">
+                            <div class="bg-gray-100 p-4 rounded-lg text-center">
+                                <p class="text-sm font-semibold text-gray-500">MAPE (Erro Percentual)</p>
+                                <p class="text-2xl font-bold text-[#3D405B]">~5%</p>
+                            </div>
+                            <div class="bg-gray-100 p-4 rounded-lg text-center">
+                                <p class="text-sm font-semibold text-gray-500">MAE (Erro Absoluto Médio)</p>
+                                <p class="text-2xl font-bold text-[#3D405B]">R$ 3.19 M</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+    
+            <div class="story-card bg-[#3D405B] text-white">
+                <h2 class="text-3xl font-bold text-center mb-4 text-[#F2CC8F]">6. Conclusão e Valor para o Negócio</h2>
+                <p class="text-lg text-center leading-relaxed">O exemplo mostra como o uso de IA e de aprendizado de máquina tem um potencial enorme de ajudar a tomada de decisão na Prefeitura de Navegantes, nas mais diversas áreas, da saúde, educação e gestão pública.</p>
+                <p class="text-lg text-center leading-relaxed mt-4">Isso pressupõe obrigatoriamente uma <strong>SÓLIDA GOVERNANÇA DE DADOS</strong>, para que mais adiante a Prefeitura se beneficie dos sistemas de IA como CHATBOTs, AGENTES DE IA, e FLUXOS DE AUTOMAÇÃO.</p>
+                <div class="mt-6 text-left bg-white bg-opacity-10 p-4 rounded-lg"><p class="text-base leading-relaxed">Com um erro médio de apenas R$ 3.19 milhões (MAPE de ~5%), o modelo Random Forest não é apenas um exercício técnico; é uma ferramenta de decisão estratégica. <strong>MAPE (Mean Absolute Percentage Error)</strong> é uma métrica que mede a precisão de um modelo de previsão, calculando o erro percentual absoluto médio entre os valores reais e os previstos. Um MAPE baixo indica que as previsões são mais precisas, enquanto um MAPE alto sugere um erro maior.</p></div>
+                <p class="text-lg text-center leading-relaxed mt-6"><strong>Na prática, isso significa que podemos:</strong></p>
+                <ul class="list-disc list-inside text-left mx-auto max-w-lg mt-4 space-y-2">
+                    <li><strong>Planejar o Fluxo de Caixa</strong> com alta confiança, antecipando receitas com uma margem de erro pequena e conhecida.</li>
+                    <li><strong>Otimizar a Alocação de Recursos</strong>, ajustando investimentos e despesas com base em previsões de arrecadação mais ou menos otimistas.</li>
+                    <li><strong>Definir Metas Realistas</strong> para as mais variadas bases de receitas, pois tudo será baseado em dados e não apenas em intuição.</li>
+                </ul>
+                <p class="text-lg text-center leading-relaxed mt-6">O modelo transforma a incerteza futura em um risco calculado, permitindo que a liderança tome decisões proativas, e não apenas reativas, garantindo um crescimento mais estável e previsível.</p>
+            </div>
+        </div>
+
+        <div id="tab-content-explicacao" class="tab-content hidden">
+            <div class="story-card">
+                <h2 class="text-2xl font-bold mb-4">O que é Machine Learning?</h2>
+                <p class="text-gray-700 leading-relaxed">Machine Learning (Aprendizado de Máquina) é uma área da inteligência artificial que permite que computadores aprendam padrões a partir de dados, sem precisar serem programados explicitamente para cada situação. Em vez de seguir apenas instruções fixas, os sistemas de ML melhoram seu desempenho com o tempo, à medida que recebem mais dados.</p>
+            </div>
+            <div class="story-card">
+                <h2 class="text-2xl font-bold mb-4">Casos de Uso de Machine Learning no Serviço Público</h2>
+                <div class="mt-6">
+                    <h3 class="text-xl font-semibold text-gray-800">1. Tribunal de Contas da União (TCU) – Fiscalização Inteligente</h3>
+                    <p class="text-gray-700 mt-2 leading-relaxed">O TCU desenvolveu uma série de algoritmos de Machine Learning com nomes como ALICE, MONICA, e SOFIA. Eles são usados para:</p>
+                    <ul class="list-disc list-inside text-gray-700 mt-2 space-y-1">
+                        <li>Analisar milhares de licitações e contratos públicos.</li>
+                        <li>Detectar padrões suspeitos, como fraudes em disputas de pregão ou inconsistências em documentos.</li>
+                        <li>Cruzar dados do Diário Oficial da União, Comprasnet e outros sistemas governamentais.</li>
+                    </ul>
+                </div>
+                <div class="mt-8">
+                    <h3 class="text-xl font-semibold text-gray-800">2. Rio do Sul (SC) – Prevenção de Evasão Escolar</h3>
+                    <p class="text-gray-700 mt-2 leading-relaxed">A prefeitura de Rio do Sul, em Santa Catarina, usa IA e Machine Learning para:</p>
+                    <ul class="list-disc list-inside text-gray-700 mt-2 space-y-1">
+                        <li>Prever com 99% de acerto quais alunos têm maior risco de evasão escolar.</li>
+                        <li>Analisar dados como frequência, desempenho, infraestrutura escolar e perfil socioeconômico.</li>
+                        <li>Planejar vagas em creches e pré-escolas, otimizando recursos e investimentos.</li>
+                    </ul>
+                </div>
+                <div class="mt-8">
+                    <h3 class="text-xl font-semibold text-gray-800">3. Prefeituras Brasileiras – Análise Automática de Documentos</h3>
+                    <p class="text-gray-700 mt-2 leading-relaxed">A ferramenta Lume, criada pela empresa Aprova, usa Machine Learning para:</p>
+                    <ul class="list-disc list-inside text-gray-700 mt-2 space-y-1">
+                        <li>Validar RG, CPF, CNH, comprovantes de endereço, matrículas de imóvel, etc.</li>
+                        <li>Automatizar processos de RH, licitações, programas sociais e tributos.</li>
+                        <li>Reduzir erros, retrabalho e tempo de espera nos serviços públicos.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <footer class="bg-white mt-12">
+        <div class="container mx-auto px-6 py-6 text-center text-gray-500">
+            <p>Relatório de Storytelling de Machine Learning.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const target = document.querySelector(button.dataset.target);
+
+                    tabContents.forEach(content => content.classList.add('hidden'));
+                    tabButtons.forEach(btn => {
+                        btn.classList.remove('border-blue-500', 'text-blue-600');
+                        btn.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-400');
+                    });
+                    
+                    target.classList.remove('hidden');
+                    button.classList.add('border-blue-500', 'text-blue-600');
+                    button.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-400');
+                });
+            });
+            
+            function drawDiagram(canvasId, drawFunction) {
+                const canvas = document.getElementById(canvasId);
+                if (canvas && canvas.getContext) {
+                    const ctx = canvas.getContext('2d');
+                    drawFunction(ctx, canvas.width, canvas.height);
+                }
+            }
+
+            function drawBox(ctx, text, x, y, width, height, color = '#81B29A') {
+                ctx.fillStyle = color;
+                ctx.fillRect(x, y, width, height);
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 14px Inter';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(text, x + width / 2, y + height / 2);
+            }
+            
+            function drawArrow(ctx, fromX, fromY, toX, toY) {
+                ctx.strokeStyle = '#3D405B';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(fromX, fromY);
+                ctx.lineTo(toX, toY);
+                ctx.stroke();
+                
+                ctx.fillStyle = '#3D405B';
+                ctx.beginPath();
+                ctx.moveTo(toX, toY);
+                ctx.lineTo(toX - 5, toY - 10);
+                ctx.lineTo(toX + 5, toY - 10);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            drawDiagram('canvas-raw-data', (ctx, w, h) => {
+                drawBox(ctx, 'Dados Históricos', 50, h/2 - 25, 150, 50, '#3D405B');
+                drawArrow(ctx, 210, h/2, 280, h/2);
+                drawBox(ctx, 'Análise Preditiva', 300, h/2 - 25, 150, 50);
+            });
+            
+            drawDiagram('canvas-initial-model', (ctx, w, h) => {
+                drawBox(ctx, 'Modelo Inicial (Simples)', 50, h/2 - 25, 180, 50, '#E07A5F');
+                drawArrow(ctx, 240, h/2, 310, h/2);
+                drawBox(ctx, 'Resultado: Baixa Precisão', 330, h/2 - 25, 240, 50, '#F2CC8F');
+                ctx.font = 'bold 30px Inter';
+                ctx.fillStyle = '#E07A5F';
+                ctx.fillText('✖', 285, h/2);
+            });
+
+            drawDiagram('canvas-fabric-choice', (ctx, w, h) => {
+                drawBox(ctx, 'Plataforma Fabric', w/2 - 100, 10, 200, 50, '#3D405B');
+                
+                ctx.strokeStyle = '#3D405B';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(w/2, 60);
+                ctx.lineTo(w/2, 90);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(w/2 - 150, 90);
+                ctx.lineTo(w/2 + 150, 90);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(w/2 - 150, 90);
+                ctx.lineTo(w/2 - 150, 120);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(w/2 + 150, 90);
+                ctx.lineTo(w/2 + 150, 120);
+                ctx.stroke();
+                
+                drawBox(ctx, 'AutoML (Automático)', w/2 - 225, 120, 150, 50, '#F2CC8F');
+                drawBox(ctx, 'Random Forest (Manual)', w/2 + 75, 120, 150, 50);
+                
+                ctx.strokeStyle = '#81B29A';
+                ctx.lineWidth = 4;
+                ctx.strokeRect(w/2 + 73, 118, 154, 54);
+                
+                ctx.fillStyle = '#3D405B';
+                ctx.font = '14px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText('Modelo Escolhido', w/2 + 150, 195);
+            });
+
+            const forecastCtx = document.getElementById('forecastChart').getContext('2d');
+            const forecastChart = new Chart(forecastCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro'],
+                    datasets: [{
+                        label: 'Dados Reais',
+                        data: [61.86, 55.76, 64.36, 66.88, 58.66, 52.92, null, null, null],
+                        backgroundColor: '#3D405B',
+                        borderColor: '#3D405B',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Previsões do Modelo',
+                        data: [null, null, null, null, null, null, 62.935, 63.790, 61.408],
+                        backgroundColor: '#81B29A',
+                        borderColor: '#81B29A',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Comparativo: Arrecadação Real vs. Previsões para 2025',
+                            font: { size: 18 },
+                            color: '#3D405B',
+                            padding: { bottom: 20 }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += 'R$ ' + context.parsed.y.toFixed(3) + ' M';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                           stacked: true,
+                           grid: { display: false }
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Valores (em milhões de R$)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            const featureCtx = document.getElementById('featureImportanceChart').getContext('2d');
+            const featureImportanceChart = new Chart(featureCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Arrecadação Mês Anterior (lag_1)', 'Média Móvel (3 meses)', 'Média Móvel (12 meses)', 'Mês do Ano', 'Sazonalidade (sin/cos)'],
+                    datasets: [{
+                        label: 'Importância da Variável',
+                        data: [0.55, 0.20, 0.15, 0.07, 0.03], 
+                        backgroundColor: '#E07A5F',
+                        borderColor: '#E07A5F',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Principais Fatores na Previsão (Features)',
+                            font: { size: 18 },
+                            color: '#3D405B',
+                            padding: { bottom: 20 }
+                        },
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return ` Importância: ${(context.parsed.x * 100).toFixed(0)}%`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                           grid: { display: false },
+                           title: {
+                               display: true,
+                               text: 'Nível de Importância (Representativo)'
+                           }
+                        },
+                        y: {
+                           grid: { display: false }
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+
+</body>
+</html>
+
