@@ -1,11 +1,12 @@
 import dash
-from dash import dcc, html, dash_table, Input, Output, State, callback_context
+from dash import Dash, html, dcc, dash_table, Input, Output, State, callback_context
 import dash_bootstrap_components as dbc
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 import json
+
 # ------  cria o app  ------
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
@@ -363,5 +364,6 @@ if __name__ == '__main__':
     # app.run(debug=False)
     from waitress import serve
     serve(app.server, host="0.0.0.0", port=8050)
+
 
 
