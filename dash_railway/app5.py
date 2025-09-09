@@ -6,58 +6,57 @@ import plotly.graph_objects as go
 import pandas as pd
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 import json
+import os # Importado para obter a porta do Railway
 
-# ------  cria o app  ------
-app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+# ==============================================================================
+# 1. INICIALIZAÇÃO DO APP DASH (FEITA APENAS UMA VEZ)
+# ==============================================================================
+# A pasta 'assets' é reconhecida automaticamente pelo Dash.
+# Certifique-se de que a pasta 'assets' com o logo está no seu GitHub.
+app = dash.Dash(__name__,
+                external_stylesheets=[dbc.themes.CYBORG, dbc.icons.FONT_AWESOME],
+                suppress_callback_exceptions=True)
 
-# ------  obrigatório pro Railway  ------
-server = app.server 
+# ------ obrigatório pro Railway ------
+server = app.server
+
 # ==============================================================================
-# 1. CARREGAMENTO E PREPARAÇÃO DOS DADOS
+# 2. CARREGAMENTO E PREPARAÇÃO DOS DADOS
 # ==============================================================================
-# Nota: Certifique-se de que o arquivo 'base_mario_agrupado_30julho_manha_fim.csv' 
-# está na mesma pasta que este script.
-filepath = 'base_mario_agrupado_30julho_manha_fim.csv'
+# Corrigido para o nome do arquivo original e correto.
+filepath = 'base_mario_agrupado_30julho_manha_fim.csv' 
 try:
     df = pd.read_csv(filepath, sep=',', decimal='.')
 except FileNotFoundError:
     print(f"ERRO CRÍTICO: O arquivo '{filepath}' não foi encontrado.")
-    print("Por favor, verifique se o nome do arquivo está correto e se ele está na mesma pasta que o script 'app.py'.")
-    exit()
+    # Cria um dataframe vazio para o app não quebrar se o arquivo não for encontrado
+    df = pd.DataFrame({
+        'ANO': [2023], 'MES': [1], 'NOME_RECEITA': ['Exemplo'], 'ARRECADADO': [0]
+    })
 
-df.columns = df.columns.str.strip().str.upper()
+# --- Lógica original de tratamento de dados, agora restaurada ---
+if not df.empty:
+    df.columns = df.columns.str.strip().str.upper()
 
-EXPECTED_COLUMNS = ['ANO', 'MES', 'NOME_RECEITA', 'ARRECADADO']
-if not all(col in df.columns for col in EXPECTED_COLUMNS):
-    print("ERRO CRÍTICO: O arquivo CSV não contém todas as colunas esperadas.")
-    print(f"Colunas esperadas: {EXPECTED_COLUMNS}")
-    print(f"Colunas encontradas após a limpeza: {df.columns.tolist()}")
-    exit()
+    EXPECTED_COLUMNS = ['ANO', 'MES', 'NOME_RECEITA', 'ARRECADADO']
+    if not all(col in df.columns for col in EXPECTED_COLUMNS):
+        print("ERRO CRÍTICO: O arquivo CSV não contém todas as colunas esperadas.")
+        exit()
 
-df['ARRECADADO'] = pd.to_numeric(df['ARRECADADO'], errors='coerce')
-df.dropna(subset=['ARRECADADO'], inplace=True)
-df['DATA'] = pd.to_datetime(df['ANO'].astype(str) + '-' + df['MES'].astype(str) + '-01')
+    df['ARRECADADO'] = pd.to_numeric(df['ARRECADADO'], errors='coerce')
+    df.dropna(subset=['ARRECADADO'], inplace=True)
+    df['DATA'] = pd.to_datetime(df['ANO'].astype(str) + '-' + df['MES'].astype(str) + '-01')
 
 # ==============================================================================
-# 2. CÁLCULOS GLOBAIS
+# 3. CÁLCULOS GLOBAIS
 # ==============================================================================
 total_2022 = df[df['ANO'] == 2022]['ARRECADADO'].sum()
 total_2023 = df[df['ANO'] == 2023]['ARRECADADO'].sum()
 total_2024 = df[df['ANO'] == 2024]['ARRECADADO'].sum()
-# Corrigido para corresponder ao ano 2024, assumindo que os dados de 2025 não estão presentes
-# Se houver dados de 2025, ajuste o ano conforme necessário.
-total_2025_jun = df[(df['ANO'] == 2025) & (df['MES'] <= 6)]['ARRECADADO'].sum() 
+total_2025_jun = df[(df['ANO'] == 2025) & (df['MES'] <= 6)]['ARRECADADO'].sum() if 2025 in df['ANO'].unique() else 0
 
 def format_currency(value):
     return f"R$ {value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-
-# ==============================================================================
-# 3. INICIALIZAÇÃO DO APP DASH
-# ==============================================================================
-# A pasta 'assets' é reconhecida automaticamente pelo Dash
-app = dash.Dash(__name__, 
-                external_stylesheets=[dbc.themes.CYBORG, dbc.icons.FONT_AWESOME],
-                suppress_callback_exceptions=True) # Adicionado para evitar erros em apps multi-página
 
 # ==============================================================================
 # 4. DEFINIÇÃO DO LAYOUT (SIDEBAR E CONTEÚDO)
@@ -65,7 +64,6 @@ app = dash.Dash(__name__,
 sidebar = html.Div(
     [
         html.Img(src=app.get_asset_url('logo_nvt.jpg'), style={'width': '100%', 'margin-bottom': '25px'}),
-        
         html.H2("Análise de Receitas", className="display-6"),
         html.Hr(),
         html.P("Um dashboard para análise da arrecadação.", className="lead"),
@@ -84,10 +82,13 @@ sidebar = html.Div(
 )
 
 content = html.Div(id="page-content", style={"margin-left": "22rem", "margin-right": "2rem", "padding": "2rem 1rem"})
+
+# O Layout é definido aqui, na única instância 'app' que criamos
 app.layout = html.Div([dcc.Location(id="url"), sidebar, content])
 
 # ==============================================================================
 # 5. DEFINIÇÃO DAS PÁGINAS E SEUS CONTEÚDOS
+# (O conteúdo das páginas permanece o mesmo que você já tinha)
 # ==============================================================================
 # --- Página "Visão Geral" ---
 visao_geral_layout = dbc.Container([
@@ -98,7 +99,7 @@ visao_geral_layout = dbc.Container([
         dbc.Col(dbc.Card([dbc.CardHeader("Arrecadado em 2025 (até Jun)"), dbc.CardBody(html.H4(format_currency(total_2025_jun), className="card-title"))], color="warning", inverse=True), width=3),
     ], className="mb-4 text-center"),
     dbc.Row([dbc.Col(html.H3("Visão Geral da Arrecadação"), width=12, className="mb-4 mt-4")]),
-    dbc.Row([dbc.Col([html.H5("Selecione o Ano:"), dcc.Dropdown(id='filtro-ano', options=[{'label': ano, 'value': ano} for ano in sorted(df['ANO'].unique())], value=df['ANO'].max(), clearable=False)], width=12)], className="mb-4"),
+    dbc.Row([dbc.Col([html.H5("Selecione o Ano:"), dcc.Dropdown(id='filtro-ano', options=[{'label': ano, 'value': ano} for ano in sorted(df['ANO'].unique())], value=df['ANO'].max() if not df.empty else None, clearable=False)], width=12)], className="mb-4"),
     dbc.Row([dbc.Col(dcc.Graph(id='grafico-top10-barras-geral'), width=12)], className="mb-4"),
     dbc.Row([dbc.Col(dcc.Graph(id='grafico-evolucao-total-linha'), width=12)])
 ], fluid=True)
@@ -108,7 +109,7 @@ analise_interativa_layout = dbc.Container([
     dbc.Row([
         dbc.Col([
             html.H5("1. Selecione o Ano de Referência:"),
-            dcc.Dropdown(id='filtro-ano-analises', options=[{'label': ano, 'value': ano} for ano in sorted(df['ANO'].unique())], value=df['ANO'].max(), clearable=False)
+            dcc.Dropdown(id='filtro-ano-analises', options=[{'label': ano, 'value': ano} for ano in sorted(df['ANO'].unique())], value=df['ANO'].max() if not df.empty else None, clearable=False)
         ], width=6),
         dbc.Col([
             html.H5("2. Selecione o Mês para Comparar:"),
@@ -129,13 +130,11 @@ analise_interativa_layout = dbc.Container([
             )
         ], width=7),
     ]),
-    
     html.Hr(className="my-4"),
     dbc.Row([
         dbc.Col(dcc.Graph(id='treemap-top10'), width=6),
         dbc.Col(dcc.Graph(id='treemap-top10-vs-others'), width=6),
     ], className="mt-4"),
-
 ], fluid=True)
 
 # --- Página "Estatísticas e Previsão" ---
@@ -149,13 +148,22 @@ estatisticas_previsao_layout = dbc.Container([
 # --- Página "Tabela Detalhada" ---
 tabela_detalhada_layout = dbc.Container([
     dbc.Row([dbc.Col(html.H3("Tabela Detalhada de Receitas"), width=12, className="mb-4")]),
-    dbc.Row([dbc.Col([html.H5("Selecione o Ano para visualizar na tabela:"), dcc.Dropdown(id='filtro-ano-tabela', options=[{'label': ano, 'value': ano} for ano in sorted(df['ANO'].unique())], value=df['ANO'].max(), clearable=False)], width=12)], className="mb-4"),
-    dbc.Row([dbc.Col([dash_table.DataTable(id='tabela-dados-filtrada', columns=[{"name": i, "id": i} for i in df.columns if i != 'DATA'], page_size=20, sort_action="native", filter_action="native", style_table={'overflowX': 'auto'}, style_header={'backgroundColor': 'rgb(30, 30, 30)', 'color': 'white'}, style_cell={'backgroundColor': 'rgb(50, 50, 50)', 'color': 'white', 'textAlign': 'left', 'whiteSpace': 'normal', 'height': 'auto'},)], width=12)])
+    dbc.Row([dbc.Col([html.H5("Selecione o Ano para visualizar na tabela:"), dcc.Dropdown(id='filtro-ano-tabela', options=[{'label': ano, 'value': ano} for ano in sorted(df['ANO'].unique())], value=df['ANO'].max() if not df.empty else None, clearable=False)], width=12)], className="mb-4"),
+    dbc.Row([dbc.Col([dash_table.DataTable(
+        id='tabela-dados-filtrada', 
+        columns=[{"name": i, "id": i} for i in df.columns if i != 'DATA'], 
+        page_size=20, 
+        sort_action="native", 
+        filter_action="native", 
+        style_table={'overflowX': 'auto'}, 
+        style_header={'backgroundColor': 'rgb(30, 30, 30)', 'color': 'white'}, 
+        style_cell={'backgroundColor': 'rgb(50, 50, 50)', 'color': 'white', 'textAlign': 'left', 'whiteSpace': 'normal', 'height': 'auto'},
+    )], width=12)])
 ], fluid=True)
 
 
 # ==============================================================================
-# 6. CALLBACKS
+# 6. CALLBACKS (O conteúdo dos callbacks permanece o mesmo)
 # ==============================================================================
 
 # Roteador de Páginas
@@ -196,6 +204,7 @@ def generate_custom_legend(ano_selecionado):
 )
 def update_chart_from_legend_click(n_clicks, mes_selecionado, ano_selecionado_ref):
     ctx = callback_context
+    clicked_index = 0
     if not ctx.triggered or all(c is None for c in n_clicks):
         clicked_index = 0
     else:
@@ -212,11 +221,7 @@ def update_chart_from_legend_click(n_clicks, mes_selecionado, ano_selecionado_re
     df_chart_data = df[(df['NOME_RECEITA'] == receita_selecionada) & (df['MES'] == mes_selecionado)]
     df_grouped = df_chart_data.groupby('ANO')['ARRECADADO'].sum().reset_index()
 
-    if df_grouped.empty:
-        max_valor_no_grafico = 1
-    else:
-        max_valor_no_grafico = df_grouped['ARRECADADO'].max()
-    eixo_y_final_max = max_valor_no_grafico * 1.20
+    eixo_y_final_max = (df_grouped['ARRECADADO'].max() * 1.20) if not df_grouped.empty else 1
         
     titulo = f'Comparativo para "{receita_selecionada}" no Mês {mes_selecionado}'
     if len(receita_selecionada) > 40:
@@ -227,7 +232,6 @@ def update_chart_from_legend_click(n_clicks, mes_selecionado, ano_selecionado_re
     fig.update_layout(xaxis_type='category', yaxis_range=[0, eixo_y_final_max])
     return fig
 
-# <<< --- CALLBACK DOS TREEMAPS ATUALIZADO --- <<<
 @app.callback(
     [Output('treemap-top10', 'figure'),
      Output('treemap-top10-vs-others', 'figure')],
@@ -239,10 +243,7 @@ def update_treemaps(ano_selecionado):
 
     df_ano = df[df['ANO'] == ano_selecionado]
 
-    # --- Treemap 1: Comparativo das Top 10 Receitas ---
     df_top10 = df_ano.groupby('NOME_RECEITA')['ARRECADADO'].sum().nlargest(10).reset_index()
-    
-    # Adiciona uma coluna com o texto formatado para o hover
     df_top10['ARRECADADO_FORMATADO'] = df_top10['ARRECADADO'].apply(format_currency)
 
     fig_treemap_top10 = px.treemap(
@@ -253,24 +254,20 @@ def update_treemaps(ano_selecionado):
         template='plotly_dark',
         color='ARRECADADO',
         color_continuous_scale=px.colors.sequential.Viridis,
-        custom_data=['ARRECADADO_FORMATADO'] # Passa os dados formatados para o hover
+        custom_data=['ARRECADADO_FORMATADO']
     )
     
-    # Melhorias visuais
     fig_treemap_top10.update_layout(
         margin=dict(t=50, l=25, r=25, b=25),
-        font=dict(size=14) # Aumenta o tamanho da fonte geral
+        font=dict(size=14)
     )
     fig_treemap_top10.update_traces(
-        # Quebra de linha automática nos rótulos e formatação do hover
         texttemplate="<b>%{label}</b><br>%{percentRoot:.2%}",
         hovertemplate='<b>%{label}</b><br>Valor: %{customdata[0]}<extra></extra>',
         textposition='middle center',
         insidetextfont=dict(size=14)
     )
 
-
-    # --- Treemap 2: Proporção Top 10 vs. Demais ---
     total_arrecadado_ano = df_ano['ARRECADADO'].sum()
     total_top10 = df_top10['ARRECADADO'].sum()
     total_outros = total_arrecadado_ano - total_top10
@@ -280,7 +277,6 @@ def update_treemaps(ano_selecionado):
         'Valor': [total_top10, total_outros]
     })
     
-    # Adiciona uma coluna com o texto formatado para o hover
     df_comparativo['VALOR_FORMATADO'] = df_comparativo['Valor'].apply(format_currency)
 
     fig_treemap_vs_others = px.treemap(
@@ -291,13 +287,12 @@ def update_treemaps(ano_selecionado):
         template='plotly_dark',
         color='Categoria',
         color_discrete_map={
-            'Top 10 Receitas': '#2ca02c', # Verde
-            'Demais Receitas': '#7f7f7f'  # Cinza
+            'Top 10 Receitas': '#2ca02c', 
+            'Demais Receitas': '#7f7f7f'
         },
-        custom_data=['VALOR_FORMATADO'] # Passa os dados formatados para o hover
+        custom_data=['VALOR_FORMATADO']
     )
     
-    # Melhorias visuais
     fig_treemap_vs_others.update_layout(
         margin=dict(t=50, l=25, r=25, b=25),
         font=dict(size=14)
@@ -306,24 +301,28 @@ def update_treemaps(ano_selecionado):
         texttemplate="<b>%{label}</b><br>%{percentRoot:.2%}",
         hovertemplate='<b>%{label}</b><br>Valor: %{customdata[0]}<extra></extra>',
         textposition='middle center',
-        insidetextfont=dict(size=20) # Fonte maior para as duas categorias principais
+        insidetextfont=dict(size=20)
     )
 
     return fig_treemap_top10, fig_treemap_vs_others
 
 
-# Callbacks das Outras Páginas
-@app.callback(Output('grafico-evolucao-total-linha', 'figure'), Input('filtro-ano', 'value'))
-def update_total_line_chart(_):
-    df_total = df.groupby('DATA')['ARRECADADO'].sum().reset_index()
-    fig = px.line(df_total, x='DATA', y='ARRECADADO', title='Evolução da Arrecadação Total (Todos os Anos)', template='plotly_dark', markers=True, labels={'DATA': 'Data', 'ARRECADADO': 'Valor Arrecadado (R$)'})
-    return fig
+@app.callback(Output('grafico-evolucao-total-linha', 'figure'), Input('url', 'pathname'))
+def update_total_line_chart(pathname):
+    if pathname == '/':
+        df_total = df.groupby('DATA')['ARRECADADO'].sum().reset_index()
+        fig = px.line(df_total, x='DATA', y='ARRECADADO', title='Evolução da Arrecadação Total (Todos os Anos)', template='plotly_dark', markers=True, labels={'DATA': 'Data', 'ARRECADADO': 'Valor Arrecadado (R$)'})
+        return fig
+    return go.Figure()
+
 
 @app.callback(Output('tabela-dados-filtrada', 'data'), Input('filtro-ano-tabela', 'value'))
 def update_table_data(ano_selecionado):
     if ano_selecionado is None: return df.to_dict('records')
     df_filtrado = df[df['ANO'] == ano_selecionado]
-    return df_filtrado.to_dict('records')
+    # Removido 'DATA' que não estava na lista de colunas
+    return df_filtrado[[c for c in df.columns if c != 'DATA']].to_dict('records')
+
 
 @app.callback([Output('tabela-estatisticas', 'data'), Output('tabela-estatisticas', 'columns')], Input('url', 'pathname'))
 def update_stats_table(pathname):
@@ -340,6 +339,8 @@ def update_stats_table(pathname):
 @app.callback(Output('grafico-previsao', 'figure'), Input('slider-previsao', 'value'))
 def update_forecast_chart(n_meses_previsao):
     ts_data = df.groupby('DATA')['ARRECADADO'].sum()
+    if len(ts_data) < 24:
+        return go.Figure(layout={'template': 'plotly_dark', 'title': 'Não foi possível gerar a previsão. Dados insuficientes.'})
     try:
         model = SARIMAX(ts_data, order=(1, 1, 1), seasonal_order=(1, 1, 1, 12), enforce_stationarity=False, enforce_invertibility=False)
         results = model.fit(disp=False)
@@ -347,7 +348,8 @@ def update_forecast_chart(n_meses_previsao):
         forecast_df = forecast.summary_frame(alpha=0.05)
     except Exception as e:
         print(f"Erro no modelo de previsão: {e}")
-        return go.Figure(layout={'template': 'plotly_dark', 'title': 'Não foi possível gerar a previsão. Poucos dados.'})
+        return go.Figure(layout={'template': 'plotly_dark', 'title': 'Não foi possível gerar a previsão.'})
+    
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=ts_data.index, y=ts_data, mode='lines', name='Histórico'))
     fig.add_trace(go.Scatter(x=forecast_df.index, y=forecast_df['mean'], mode='lines', name='Previsão', line={'dash': 'dot'}))
@@ -360,10 +362,9 @@ def update_forecast_chart(n_meses_previsao):
 # 7. EXECUÇÃO DO SERVIDOR
 # ==============================================================================
 if __name__ == '__main__':
-    # Para desenvolvimento, use debug=True. Para "produção" ou para ocultar o menu de erros, use debug=False.
-    # app.run(debug=False)
-    from waitress import serve
-    serve(app.server, host="0.0.0.0", port=8050)
+    port = int(os.environ.get("PORT", 8050))
+    app.run_server(debug=False, host='0.0.0.0', port=port)
+
 
 
 
